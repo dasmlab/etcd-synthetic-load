@@ -46,6 +46,37 @@ Helm-secret fraction are all tunable in `profile.yaml` (or via `plan` CLI
 flags), specifically so you can sit down with a client/stakeholder and
 agree the mix is representative of *their* cluster before running `load`.
 
+## Reference client scale (from triage feedback)
+
+Use these as knobs when agreeing a representative profile with the client —
+defaults above are a dense 100-namespace shape; real migration clusters may
+look more like:
+
+| Signal | Example client observation |
+|--------|----------------------------|
+| Namespaces | ~**4,000** (not 100) |
+| Secrets | ~**120,000** |
+| ConfigMaps | ~**80,000** |
+| etcd physical utilization | ~**5.6 GiB of 8 GiB** quota |
+| Object-count metrics | Watch for **~2× inflation** if a tool `sum()`s `apiserver_storage_objects` across API-server replicas — correct aggregation is **`max by (resource)`**. Sanity-check against `oc get <resource> -A \| wc -l`. |
+
+Example plan closer to a wide namespace sprawl (tune further with the client):
+
+```bash
+./bin/etcd-synthetic-load plan \
+  --target-gib 5.6 \
+  --target-secrets 120000 \
+  --target-configmaps 80000 \
+  --small-namespaces 3200 \
+  --medium-namespaces 700 \
+  --large-namespaces 100 \
+  --helm-secret-fraction 0.15 \
+  -o profile-4000ns.yaml
+```
+
+After load, validate triage scripts report namespace counts near `oc get ns | wc -l`
+(≈1.0×), not ~2.0×.
+
 ## Non-goals
 
 - This is **not** a general Kubernetes load-testing tool, benchmark suite,
