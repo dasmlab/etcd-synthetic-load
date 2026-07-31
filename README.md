@@ -19,6 +19,45 @@
 >
 > ================================================================================
 
+**Version: 0.2.0 (alpha)** · Lab/Test/Dev only · [Workflow](docs/WORKFLOW.md) · [D2 diagram](diagrams/workflow.svg)
+
+## Quick start (preferred)
+
+See the full lifecycle in [docs/WORKFLOW.md](docs/WORKFLOW.md):
+
+![etcd-synthetic-load workflow](diagrams/workflow.svg)
+
+Source: [`diagrams/workflow.d2`](diagrams/workflow.d2) (D2 → SVG).
+
+```bash
+# Credentials live in env / .env only — NEVER in YAML or git.
+cp .env.example .env   # set OC_SERVER / OC_USER / OC_PASSWORD (rotate if leaked)
+
+make build
+./bin/etcd-synthetic-load target create --name PROD-2 \
+  --api-server https://api.2026-prod-2.ocp.dasmlab.org:6443
+./bin/etcd-synthetic-load target configure --id <id>
+./bin/etcd-synthetic-load target generate  --id <id>
+# → data/targets/<id>/map/manifest.yaml + shards/
+
+./bin/etcd-synthetic-load serve --runtime ./data/runtime.yaml   # UI+API :8080
+```
+
+### Container
+
+```bash
+podman build -t etcd-synthetic-load -f Containerfile .
+podman run --rm -p 8080:8080 -v "$PWD/data:/data:Z" --env-file .env \
+  etcd-synthetic-load generate --runtime /data/runtime.yaml --target /data/target.yaml
+podman run --rm -p 8080:8080 -v "$PWD/data:/data:Z" --env-file .env \
+  etcd-synthetic-load serve --listen :8080
+```
+
+CLI parity with the UI: `configure | generate | load-plan | test | report | serve`
+(+ legacy `plan` / `load` / `status` / `cleanup`).
+
+---
+
 ## What this is
 
 `etcd-synthetic-load` simulates a "client-like" etcd usage profile so that

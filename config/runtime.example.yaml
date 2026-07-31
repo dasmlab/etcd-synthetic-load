@@ -1,0 +1,35 @@
+# Static runtime configuration (cluster context, pacing, data paths).
+# Credentials are NEVER stored here — use OC_SERVER / OC_USER / OC_PASSWORD
+# or KUBECONFIG environment variables (see .env.example).
+#
+# WARNING: NOT FOR USE ON ANY CLUSTER THAT IS IMPORTANT.
+
+apiVersion: etcd-synthetic-load.dasmlab.org/v1
+kind: RuntimeConfig
+
+metadata:
+  name: prod-2-lab
+  notes: "PROD-2 lab target for etcd synthetic load. Lab/Test only."
+
+cluster:
+  # Display name in the UI (not a secret).
+  displayName: PROD-2
+  # API URL is also taken from OC_SERVER when set (env wins).
+  apiServer: https://api.2026-prod-2.ocp.dasmlab.org:6443
+  # Optional kube context name if using a mounted kubeconfig.
+  context: ""
+
+paths:
+  dataDir: /data
+  plansDir: /data/plans
+  runsDir: /data/runs
+
+load:
+  # Controlled load pacing (migrations are controlled; so is this).
+  batchSize: 50              # objects per batch before a pause
+  concurrency: 8             # parallel creates within a batch
+  pauseBetweenBatches: 500ms
+  namespacePause: 200ms       # pause after creating each namespace shell
+
+server:
+  listenAddr: ":8080"

@@ -19,3 +19,12 @@ kubeconfig.*
 *.swp
 .idea/
 .vscode/
+.env
+.env.*
+!.env.example
+data/
+*.kubeconfig
+cmd/etcd-synthetic-load/static/*
+!cmd/etcd-synthetic-load/static/.gitkeep
+web/node_modules/
+web/dist/

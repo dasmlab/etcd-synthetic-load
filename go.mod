@@ -3,6 +3,8 @@ module github.com/dasmlab/etcd-synthetic-load
 go 1.24.4
 
 require (
+	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/cors v1.2.1
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.3

@@ -18,19 +18,26 @@ func newRootCmd() *cobra.Command {
 		Use:   "etcd-synthetic-load",
 		Short: "Synthetic etcd load generator for OpenShift/Kubernetes triage testing",
 		Long: banner + `
-etcd-synthetic-load simulates a client-like etcd usage profile (lots of
-Secrets, ConfigMaps, and Helm-release-style secrets spread across
-Small/Medium/Large namespaces) so that etcd triage/monitoring scripts can be
-exercised against realistic object volumes and payload sizes without waiting
-for a real workload to accumulate that state organically.
+etcd-synthetic-load builds Small/Medium/Large synthetic compositions and can
+apply them in a controlled (batched) way so triage tooling can be exercised
+against realistic object volumes.
 
-Typical flow:
+Typical flow (CLI):
 
-  1. etcd-synthetic-load plan   --target-gib 5.6 --target-secrets 120000 --target-configmaps 80000
-  2. etcd-synthetic-load load   --dry-run
-  3. etcd-synthetic-load load   --i-understand-this-stresses-etcd
-  4. etcd-synthetic-load status
-  5. etcd-synthetic-load cleanup
+  1. etcd-synthetic-load target create --name PROD-2 --api-server https://...
+  2. etcd-synthetic-load target configure --id <id>
+  3. etcd-synthetic-load target generate  --id <id>
+  4. etcd-synthetic-load load-plan --plan <id> --dry-run
+  5. etcd-synthetic-load load-plan --plan <id> --i-understand-this-stresses-etcd
+  6. etcd-synthetic-load report / test / cleanup
+  7. etcd-synthetic-load target delete --id <id> --yes
+
+See docs/WORKFLOW.md and diagrams/workflow.svg.
+
+Or all via container with a data mount:
+
+  docker run --rm -v "$PWD/data:/data" -e OC_SERVER -e OC_USER -e OC_PASSWORD \
+    IMAGE generate --runtime /data/runtime.yaml --target /data/target.yaml
 
 Cluster auth (checked in this order):
   1. --kubeconfig <path>
@@ -38,6 +45,8 @@ Cluster auth (checked in this order):
   3. $OC_SERVER + $OC_USER + $OC_PASSWORD  (shells out to 'oc login')
   4. in-cluster config (when running as a Pod)
   5. ~/.kube/config
+
+Legacy commands 'plan' / 'load' (Secrets+ConfigMaps profile.yaml) remain available.
 `,
 		Version:       version,
 		SilenceUsage:  true,
@@ -46,8 +55,15 @@ Cluster auth (checked in this order):
 
 	root.PersistentFlags().StringVar(&gf.kubeconfig, "kubeconfig", "", "path to kubeconfig (default: $KUBECONFIG, then OC_SERVER/OC_USER/OC_PASSWORD, then in-cluster, then ~/.kube/config)")
 
-	root.AddCommand(newPlanCmd())
-	root.AddCommand(newLoadCmd(gf))
+	root.AddCommand(newConfigureCmd())
+	root.AddCommand(newGenerateCmd())
+	root.AddCommand(newTargetCmd())
+	root.AddCommand(newLoadPlanCmd(gf))
+	root.AddCommand(newReportCmd())
+	root.AddCommand(newTestCmd())
+	root.AddCommand(newServeCmd())
+	root.AddCommand(newPlanCmd())   // legacy
+	root.AddCommand(newLoadCmd(gf)) // legacy
 	root.AddCommand(newStatusCmd(gf))
 	root.AddCommand(newCleanupCmd(gf))
 

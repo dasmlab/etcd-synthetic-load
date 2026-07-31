@@ -1,0 +1,73 @@
+# Dynamic Generation Seed — utilization + S/M/L namespace budgets + composition.
+# Omit seedTiers to use built-in defaults (10×100MiB + 40×50MiB + 2×1GiB @ 5 GiB).
+#
+# Budget rules (enforced by generate / UI preview):
+#   1) sum(namespaceCount × bytesPerNamespace) ≈ utilizationGiB
+#   2) per namespace: sum(recordsPerNs × avg(SmallX,LargeX)) ≤ bytesPerNamespace
+#
+# WARNING: NOT FOR USE ON ANY CLUSTER THAT IS IMPORTANT.
+
+apiVersion: etcd-synthetic-load.dasmlab.org/v1
+kind: LoadTarget
+
+metadata:
+  name: client-5gib-seed
+  notes: "Budget-first seed — 5 GiB reference shape"
+
+utilization:
+  targetGiB: 5.0
+  # targetPercentOfQuota: 70
+  assumedQuotaGiB: 8.0
+
+# Optional legacy global object totals (ignored when seedTiers is set).
+# objects:
+#   secrets: 120000
+
+seedTiers:
+  - name: SMALL
+    namespaceCount: 10
+    bytesPerNamespace: 104857600   # 100 MiB
+    composition:
+      - kind: secrets
+        enabled: true
+        recordsPerNamespace: 9000
+        smallX: 2048
+        largeX: 8192
+      - kind: configmaps
+        enabled: true
+        recordsPerNamespace: 7000
+        smallX: 2048
+        largeX: 8192
+      - kind: services
+        enabled: true
+        recordsPerNamespace: 1000
+        smallX: 2048
+        largeX: 8192
+  - name: MEDIUM
+    namespaceCount: 40
+    bytesPerNamespace: 52428800    # 50 MiB  (40×250MiB would be ~10GiB — too big for 5GiB)
+    composition:
+      - kind: secrets
+        enabled: true
+        recordsPerNamespace: 1300
+        smallX: 8192
+        largeX: 32768
+      - kind: configmaps
+        enabled: true
+        recordsPerNamespace: 900
+        smallX: 8192
+        largeX: 32768
+  - name: LARGE
+    namespaceCount: 2
+    bytesPerNamespace: 1073741824  # 1 GiB
+    composition:
+      - kind: secrets
+        enabled: true
+        recordsPerNamespace: 6500
+        smallX: 32768
+        largeX: 131072
+      - kind: configmaps
+        enabled: true
+        recordsPerNamespace: 5200
+        smallX: 32768
+        largeX: 131072

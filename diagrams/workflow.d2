@@ -1,0 +1,33 @@
+direction: right
+
+start: "Start\n(container / UI / CLI)"
+create: "1. Create Target\napiServer + user/pass\n(creds in env / secret)"
+configure: "2. Configure Target\nsliders · S/M/L budgets\ncomposition · SmallX/LargeX"
+validateCfg: "Validate seed\n±10% tolerance\n(configurable)"
+generate: "3. Generate Load Map\nsharded YAML under\ndata/targets/<id>/map/"
+validateMap: "Validate map\nconstitution + shards"
+load: "4. Load\npaced apply → etcd"
+test: "5. Test\n(suite TBD)"
+report: "6. Report\nsummaries + artifacts"
+clean: "Clean\nremove synthetic objs\n(any step)"
+delete: "Delete Target\nclean + drop record"
+
+start -> create
+create -> configure
+configure -> validateCfg
+validateCfg -> generate: ok
+validateCfg -> configure: fail
+generate -> validateMap
+validateMap -> load: ok
+validateMap -> generate: fail
+load -> test
+test -> report
+report -> clean
+clean -> delete
+
+create -> clean: any step
+configure -> clean: any step
+generate -> clean: any step
+load -> clean: any step
+test -> clean: any step
+report -> clean: any step

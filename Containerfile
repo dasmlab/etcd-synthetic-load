@@ -1,12 +1,19 @@
 # ==============================================================================
 # WARNING: etcd-synthetic-load intentionally STRESSES ETCD.
 #
-# This image builds a tool that creates large volumes of Secrets, ConfigMaps,
-# and Namespaces on a Kubernetes/OpenShift cluster in order to load-test
-# etcd. It is NOT FOR USE ON ANY CLUSTER THAT IS IMPORTANT.
+# This image builds a tool that creates large volumes of cluster objects in
+# order to load-test etcd. It is NOT FOR USE ON ANY CLUSTER THAT IS IMPORTANT.
 #
 # LAB / TEST / DEV CLUSTERS ONLY.
 # ==============================================================================
+
+FROM registry.access.redhat.com/ubi9/nodejs-20:latest AS web
+WORKDIR /web
+USER 0
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
 
 FROM registry.access.redhat.com/ubi9/go-toolset:latest AS build
 WORKDIR /build
@@ -17,8 +24,10 @@ RUN go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
+COPY --from=web /web/dist/ ./cmd/etcd-synthetic-load/static/
 
-RUN CGO_ENABLED=0 go build -o /build/etcd-synthetic-load ./cmd/etcd-synthetic-load
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build -ldflags "-X main.version=${VERSION}" -o /build/etcd-synthetic-load ./cmd/etcd-synthetic-load
 
 # ------------------------------------------------------------------------------
 # Runtime image. Includes the `oc` CLI so OC_SERVER/OC_USER/OC_PASSWORD login
@@ -26,7 +35,6 @@ RUN CGO_ENABLED=0 go build -o /build/etcd-synthetic-load ./cmd/etcd-synthetic-lo
 # ------------------------------------------------------------------------------
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
-# WARNING: NOT FOR USE ON ANY CLUSTER THAT IS IMPORTANT. See README.md.
 LABEL org.opencontainers.image.title="etcd-synthetic-load" \
       org.opencontainers.image.description="Synthetic etcd load generator - LAB/TEST/DEV CLUSTERS ONLY, not for use on any cluster that is important" \
       org.opencontainers.image.source="https://github.com/dasmlab/etcd-synthetic-load" \
@@ -42,9 +50,13 @@ RUN microdnf install -y tar gzip ca-certificates && \
 
 COPY --from=build /build/etcd-synthetic-load /usr/local/bin/etcd-synthetic-load
 
-RUN useradd -u 1001 -m -s /sbin/nologin synthload
+RUN useradd -u 1001 -m -s /sbin/nologin synthload && mkdir -p /data && chown 1001:1001 /data
 USER 1001
-WORKDIR /home/synthload
+WORKDIR /data
+VOLUME ["/data"]
+
+ENV ESL_DATA_DIR=/data
+EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/etcd-synthetic-load"]
-CMD ["--help"]
+CMD ["serve", "--listen", ":8080"]
